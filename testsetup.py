@@ -15,7 +15,7 @@ correctdata = bytearray(os.path.getsize(correctfile))
 with open(correctfile, 'rb') as f:
     f.readinto(correctdata)
 
-stage = StageFright(inputdata)
+stage = StageFright(inputdata, 550)
 output = stage.convert()
 
 with open(outputfile, "wb") as f:
@@ -24,3 +24,9 @@ with open(outputfile, "wb") as f:
 print "Input size: " + str(len(inputdata)) + ' bytes'
 print "Output size: " + str(len(output)) + ' bytes'
 print "Correction model size: " + str(len(correctdata)) + ' bytes'
+
+for byte in range(len(correctdata)):
+    if correctdata[byte] == output[byte]:
+        continue
+    else:
+        print "Found faulty data on byte " + str(byte)
